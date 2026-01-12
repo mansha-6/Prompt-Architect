@@ -43,10 +43,37 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-    const result = await model.generateContent(parts);
-    const response = await result.response;
-    const text = response.text();
+    // Retry Strategy with Fallback
+    const modelsToTry = ["gemini-2.5-flash", "gemini-1.5-flash"];
+    let text = "";
+    let finalError = null;
+
+    for (const modelName of modelsToTry) {
+      try {
+        console.log(`Attempting generation with model: ${modelName}...`);
+        const model = genAI.getGenerativeModel({ model: modelName });
+        const result = await model.generateContent(parts);
+        const response = await result.response;
+        text = response.text();
+        
+        // If successful, break the loop
+        finalError = null;
+        break; 
+      } catch (err: any) {
+        console.warn(`Model ${modelName} failed or overloaded: ${err.message}`);
+        finalError = err;
+        
+        // Only continue to the next model if it's a 503 (Overloaded) or 500
+        if (err.message.includes("503") || err.message.includes("overloaded")) {
+          await new Promise(r => setTimeout(r, 1000)); // Wait 1s before fallback
+          continue;
+        }
+        // For other errors (like invalid API key), stop immediately
+        throw err;
+      }
+    }
+
+    if (finalError) throw finalError;
 
     console.log("Gemini Response:", text.substring(0, 100) + "...");
 
