@@ -44,7 +44,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Retry Strategy with Fallback
-    const modelsToTry = ["gemini-2.5-flash", "gemini-1.5-flash"];
+    // We use -latest aliases to resolve 404 errors with specific version pinning
+    const modelsToTry = ["gemini-2.5-flash", "gemini-1.5-flash-latest", "gemini-1.5-flash-001"];
     let text = "";
     let finalError = null;
 
